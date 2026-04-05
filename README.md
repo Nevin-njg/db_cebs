@@ -1,2 +1,2 @@
 # db_cebs
-db project
+my db project
