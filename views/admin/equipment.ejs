@@ -1,0 +1,156 @@
+<%- include('../layout/header', { title: title, cssFile: '/css/admin.css' }) %>
+
+<header class="header">
+  <div class="header-container">
+    <div style="display:flex;align-items:center;">
+      <div class="logo"><i class="fas fa-tools"></i> Heritage Tools</div>
+      <div class="admin-badge">Admin Panel</div>
+    </div>
+    <div class="header-right">
+      <div class="admin-info">
+        <div class="admin-name"><%= sessionUser.name %></div>
+        <div class="admin-role">Administrator</div>
+      </div>
+      <div class="user-avatar"><%= sessionUser.name.charAt(0).toUpperCase() %></div>
+      <a href="/auth/logout" style="color:var(--cream);font-size:0.9rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:0.4rem;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <ul class="sidebar-menu">
+    <li><a href="/admin/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+    <li><a href="/admin/equipment" class="active"><i class="fas fa-hammer"></i> Manage Equipment</a></li>
+    <li><a href="/admin/requests"><i class="fas fa-clipboard-list"></i> Approve Requests</a></li>
+    <li><a href="/admin/history"><i class="fas fa-history"></i> Borrow History</a></li>
+    <li><a href="/admin/users"><i class="fas fa-users"></i> User Management</a></li>
+  </ul>
+</aside>
+
+<main class="main-container">
+  <div class="page-header">
+    <h1 class="page-title">Manage Equipment</h1>
+    <button class="btn-add" onclick="openAddModal()"><i class="fas fa-plus"></i> Add Equipment</button>
+  </div>
+  <div class="content-area">
+    <table class="equipment-table" id="equipmentTable">
+      <thead>
+        <tr>
+          <th>Equipment</th>
+          <th>Category</th>
+          <th>Total</th>
+          <th>Available</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="equipmentBody">
+        <% equipment.forEach(item => { %>
+        <tr data-id="<%= item.id %>">
+          <td><span class="equipment-icon"><%= item.icon || '🔧' %></span><strong><%= item.name %></strong></td>
+          <td><%= item.category %></td>
+          <td><%= item.total_quantity %></td>
+          <td><%= item.available_quantity %></td>
+          <td><span class="status-badge-small status-<%= item.status %>"><%= item.status %></span></td>
+          <td>
+            <div class="action-buttons">
+              <button class="btn-sm btn-edit" onclick='openEditModal(<%- JSON.stringify(item) %>)'>
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button class="btn-sm btn-delete" onclick="openDeleteModal(<%= item.id %>, '<%= item.name %>')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+        <% if (equipment.length === 0) { %>
+        <tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">📦</div><h3>No Equipment Added</h3><p>Click "Add Equipment" to get started</p></div></td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal" id="equipmentModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span id="modalTitle">Add New Equipment</span>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Equipment Name *</label>
+      <input type="text" class="form-input" id="equipmentName" required>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Category *</label>
+        <select class="form-select" id="equipmentCategory" required>
+          <option value="">Select Category</option>
+          <option value="Power Tools">Power Tools</option>
+          <option value="Hand Tools">Hand Tools</option>
+          <option value="Safety Equipment">Safety Equipment</option>
+          <option value="Measuring Tools">Measuring Tools</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Icon/Emoji *</label>
+        <input type="text" class="form-input" id="equipmentIcon" placeholder="e.g., 🔧">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Total Units *</label>
+        <input type="number" class="form-input" id="equipmentQuantity" min="1" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Available Units *</label>
+        <input type="number" class="form-input" id="equipmentAvailable" min="0" required>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Specifications</label>
+      <textarea class="form-textarea" id="equipmentSpecs"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status *</label>
+      <select class="form-select" id="equipmentStatus" required>
+        <option value="available">Available</option>
+        <option value="limited">Limited</option>
+        <option value="unavailable">Unavailable</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Next Available (if unavailable)</label>
+      <input type="text" class="form-input" id="equipmentNextAvailable" placeholder="e.g., 2 days">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-modal btn-submit" onclick="submitEquipment()">Save Equipment</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal" id="deleteModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>Confirm Delete</span>
+      <button class="close-btn" onclick="closeDeleteModal()">&times;</button>
+    </div>
+    <p style="font-size:1.1rem;margin-bottom:2rem;color:var(--text-light);">
+      Are you sure you want to delete <strong id="deleteItemName"></strong>? This cannot be undone.
+    </p>
+    <div class="modal-footer">
+      <button class="btn-modal btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-modal btn-submit" id="confirmDeleteBtn" style="background:#c62828;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/admin.js"></script>
+<%- include('../layout/footer') %>

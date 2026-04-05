@@ -1,0 +1,161 @@
+<%- include('../layout/header', { title: title, cssFile: '/css/user.css' }) %>
+
+<header class="header">
+  <div class="header-container">
+    <div class="logo"><i class="fas fa-tools"></i> Heritage Tools</div>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="#equipment">Equipment</a></li>
+        <li><a href="#my-requests">My Requests</a></li>
+        <% if (sessionUser && sessionUser.role === 'admin') { %>
+        <li><a href="/admin/dashboard" style="color:var(--gold);">Admin Panel</a></li>
+        <% } %>
+      </ul>
+    </nav>
+    <div class="user-section">
+      <div class="badge-counter" id="requestCount">0</div>
+      <div class="user-avatar" title="<%= sessionUser ? sessionUser.name : 'User' %>">
+        <%= sessionUser ? sessionUser.name.charAt(0).toUpperCase() : 'U' %>
+      </div>
+      <a href="/auth/logout" style="color:var(--cream);font-size:0.9rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:0.4rem;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-title">
+    <h1>Tool & Equipment Portal</h1>
+    <p>Welcome, <strong><%= sessionUser ? sessionUser.name : 'User' %></strong> — Browse, Request & Manage Your Equipment</p>
+  </div>
+
+  <section class="filters-section">
+    <h3 class="filters-header">Search & Filter</h3>
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label class="filter-label">Search Equipment</label>
+        <input type="text" class="filter-input" id="searchInput" placeholder="Find tools...">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Category</label>
+        <select class="filter-select" id="categoryFilter">
+          <option value="">All Categories</option>
+          <option value="Power Tools">Power Tools</option>
+          <option value="Hand Tools">Hand Tools</option>
+          <option value="Safety Equipment">Safety Equipment</option>
+          <option value="Measuring Tools">Measuring Tools</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Availability</label>
+        <select class="filter-select" id="statusFilter">
+          <option value="">All Status</option>
+          <option value="available">Available</option>
+          <option value="limited">Limited</option>
+          <option value="unavailable">Unavailable</option>
+        </select>
+      </div>
+      <button class="btn-reset" onclick="resetFilters()">Reset</button>
+    </div>
+  </section>
+
+  <section id="equipment">
+    <h2 class="section-header">Available Equipment</h2>
+    <div class="equipment-grid" id="equipmentGrid">
+      <% equipment.forEach(item => { %>
+      <div class="card" data-category="<%= item.category %>" data-status="<%= item.status %>" data-name="<%= item.name.toLowerCase() %>">
+        <div class="card-header">
+          <div class="card-icon"><%= item.icon || '🔧' %></div>
+          <h3 class="card-title"><%= item.name %></h3>
+          <div class="card-category"><%= item.category %></div>
+        </div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="info-label">Status</span>
+            <span class="status-badge status-<%= item.status %>"><%= item.status %></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Available</span>
+            <span class="info-value"><%= item.available_quantity %>/<%= item.total_quantity %></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Specifications</span>
+            <span class="info-value" style="text-align:right;font-size:0.95rem;"><%= item.specifications %></span>
+          </div>
+          <% if (item.next_available) { %>
+          <div class="availability-box">
+            <div class="label">Next Available</div>
+            <div class="time">In <%= item.next_available %></div>
+          </div>
+          <% } %>
+        </div>
+        <div class="card-footer">
+          <% if (item.available_quantity > 0) { %>
+          <button class="btn btn-primary" onclick="openRequestModal(<%= item.id %>, '<%= item.name %>', <%= item.available_quantity %>)">
+            <i class="fas fa-hand-paper"></i> Request
+          </button>
+          <% } else { %>
+          <button class="btn btn-secondary" disabled style="flex:1;opacity:0.5;">Unavailable</button>
+          <% } %>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="requests-section" id="my-requests">
+    <h2 class="section-header">My Requests</h2>
+    <div class="requests-list" id="requestsList">
+      <div class="empty-state">
+        <div class="empty-state-icon">📋</div>
+        <h3>No Requests Yet</h3>
+        <p>Submit a request for equipment to see it here</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- REQUEST MODAL -->
+<div class="modal" id="requestModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>Request Equipment</span>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Equipment</label>
+      <input type="text" class="form-input" id="modalEquipmentName" readonly>
+      <input type="hidden" id="modalEquipmentId">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Quantity Required</label>
+      <input type="number" class="form-input" id="modalQuantity" min="1" value="1" required>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Duration</label>
+      <div style="display:flex;gap:1rem;">
+        <input type="number" class="form-input" id="modalDurationValue" min="1" value="1" style="flex:1;" required>
+        <select class="form-input" id="modalDurationType" style="flex:1;">
+          <option value="hours">Hours</option>
+          <option value="days" selected>Days</option>
+        </select>
+      </div>
+      <div style="margin-top:0.5rem;font-size:0.9rem;color:var(--light-brown);">
+        Return by: <strong id="returnDatePreview">—</strong>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Purpose / Project</label>
+      <textarea class="form-textarea" id="modalPurpose" placeholder="Describe the purpose..." required></textarea>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="submitRequest()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/user.js"></script>
+<%- include('../layout/footer') %>

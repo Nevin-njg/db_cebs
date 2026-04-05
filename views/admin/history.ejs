@@ -1,0 +1,73 @@
+<%- include('../layout/header', { title: title, cssFile: '/css/admin.css' }) %>
+
+<header class="header">
+  <div class="header-container">
+    <div style="display:flex;align-items:center;">
+      <div class="logo"><i class="fas fa-tools"></i> Heritage Tools</div>
+      <div class="admin-badge">Admin Panel</div>
+    </div>
+    <div class="header-right">
+      <div class="admin-info">
+        <div class="admin-name"><%= sessionUser.name %></div>
+        <div class="admin-role">Administrator</div>
+      </div>
+      <div class="user-avatar"><%= sessionUser.name.charAt(0).toUpperCase() %></div>
+      <a href="/auth/logout" style="color:var(--cream);font-size:0.9rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:0.4rem;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <ul class="sidebar-menu">
+    <li><a href="/admin/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+    <li><a href="/admin/equipment"><i class="fas fa-hammer"></i> Manage Equipment</a></li>
+    <li><a href="/admin/requests"><i class="fas fa-clipboard-list"></i> Approve Requests</a></li>
+    <li><a href="/admin/history" class="active"><i class="fas fa-history"></i> Borrow History</a></li>
+    <li><a href="/admin/users"><i class="fas fa-users"></i> User Management</a></li>
+  </ul>
+</aside>
+
+<main class="main-container">
+  <div class="page-header">
+    <h1 class="page-title">Borrow History</h1>
+  </div>
+  <div class="content-area">
+    <table class="equipment-table">
+      <thead>
+        <tr>
+          <th>Equipment</th>
+          <th>User</th>
+          <th>Qty</th>
+          <th>Duration</th>
+          <th>Return By</th>
+          <th>Submitted</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (history.length === 0) { %>
+        <tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📚</div><h3>No History Yet</h3><p>Approved requests will appear here</p></div></td></tr>
+        <% } %>
+        <% history.forEach(item => { %>
+        <tr>
+          <td><strong><%= item.equipment_name %></strong></td>
+          <td><%= item.user_name %></td>
+          <td><%= item.quantity %></td>
+          <td><%= item.duration_value %> <%= item.duration_type %></td>
+          <td><%= new Date(item.return_date).toLocaleString() %></td>
+          <td><%= new Date(item.submitted_at).toLocaleDateString() %></td>
+          <td>
+            <span class="status-badge-small status-<%= item.status === 'returned' ? 'available' : 'limited' %>">
+              <%= item.status %>
+            </span>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<%- include('../layout/footer') %>

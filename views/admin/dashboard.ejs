@@ -1,0 +1,135 @@
+<%- include('../layout/header', { title: 'Admin - Dashboard', cssFile: '/css/admin.css' }) %>
+
+<header class="header">
+  <div class="header-container">
+    <div style="display:flex;align-items:center;">
+      <div class="logo"><i class="fas fa-tools"></i> Heritage Tools</div>
+      <div class="admin-badge">Admin Panel</div>
+    </div>
+    <div class="header-right">
+      <div class="admin-info">
+        <div class="admin-name"><%= sessionUser.name %></div>
+        <div class="admin-role">Administrator</div>
+      </div>
+      <div class="user-avatar"><%= sessionUser.name.charAt(0).toUpperCase() %></div>
+      <a href="/auth/logout" style="color:var(--cream);font-size:0.9rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:0.4rem;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <ul class="sidebar-menu">
+    <li><a href="/admin/dashboard" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+    <li><a href="/admin/equipment"><i class="fas fa-hammer"></i> Manage Equipment</a></li>
+    <li><a href="/admin/requests"><i class="fas fa-clipboard-list"></i> Approve Requests</a></li>
+    <li><a href="/admin/history"><i class="fas fa-history"></i> Borrow History</a></li>
+    <li><a href="/admin/users"><i class="fas fa-users"></i> User Management</a></li>
+  </ul>
+</aside>
+
+<main class="main-container">
+  <div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <span style="color:var(--text-light);font-size:1rem;">Welcome back, <strong><%= sessionUser.name %></strong></span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;margin-bottom:2.5rem;">
+    <div style="background:white;border:2px solid var(--border-color);border-radius:8px;padding:2rem;box-shadow:var(--shadow-light);border-top:4px solid var(--gold);text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔧</div>
+      <div style="font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:900;color:var(--dark-brown);" id="stat-total-equipment">—</div>
+      <div style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);font-weight:700;">Total Equipment</div>
+    </div>
+    <div style="background:white;border:2px solid var(--border-color);border-radius:8px;padding:2rem;box-shadow:var(--shadow-light);border-top:4px solid #f59e0b;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">📋</div>
+      <div style="font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:900;color:var(--dark-brown);" id="stat-pending">—</div>
+      <div style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);font-weight:700;">Pending Requests</div>
+    </div>
+    <div style="background:white;border:2px solid var(--border-color);border-radius:8px;padding:2rem;box-shadow:var(--shadow-light);border-top:4px solid #10b981;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">✅</div>
+      <div style="font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:900;color:var(--dark-brown);" id="stat-approved">—</div>
+      <div style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);font-weight:700;">Currently Borrowed</div>
+    </div>
+    <div style="background:white;border:2px solid var(--border-color);border-radius:8px;padding:2rem;box-shadow:var(--shadow-light);border-top:4px solid #3b82f6;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">👥</div>
+      <div style="font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:900;color:var(--dark-brown);" id="stat-users">—</div>
+      <div style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);font-weight:700;">Registered Users</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+    <div class="content-area">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:2px solid var(--gold);">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--dark-brown);">Recent Requests</h2>
+        <a href="/admin/requests" style="color:var(--primary-brown);font-weight:700;text-decoration:none;font-size:0.9rem;">View All →</a>
+      </div>
+      <div id="recentRequests"><div style="text-align:center;padding:2rem;color:var(--text-light);">Loading...</div></div>
+    </div>
+    <div class="content-area">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:2px solid var(--gold);">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--dark-brown);">Equipment Status</h2>
+        <a href="/admin/equipment" style="color:var(--primary-brown);font-weight:700;text-decoration:none;font-size:0.9rem;">Manage →</a>
+      </div>
+      <div id="equipmentStatus"><div style="text-align:center;padding:2rem;color:var(--text-light);">Loading...</div></div>
+    </div>
+  </div>
+</main>
+
+<script src="/js/admin.js"></script>
+<script>
+async function loadDashboard() {
+  try {
+    const [eqRes, reqRes, userRes] = await Promise.all([
+      fetch('/api/equipment'),
+      fetch('/api/requests'),
+      fetch('/api/users')
+    ]);
+    const eqData = await eqRes.json();
+    const reqData = await reqRes.json();
+    const userData = await userRes.json();
+
+    const equipment = eqData.data || [];
+    const requests = reqData.data || [];
+    const users = userData.data || [];
+
+    document.getElementById('stat-total-equipment').textContent = equipment.length;
+    document.getElementById('stat-pending').textContent = requests.filter(r => r.status === 'pending').length;
+    document.getElementById('stat-approved').textContent = requests.filter(r => r.status === 'approved').length;
+    document.getElementById('stat-users').textContent = users.length;
+
+    document.getElementById('equipmentStatus').innerHTML = equipment.length === 0
+      ? '<div style="text-align:center;color:var(--text-light);padding:2rem;">No equipment added yet</div>'
+      : equipment.map(item => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.9rem 0;border-bottom:1px solid var(--border-color);">
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <span style="font-size:1.4rem;">${item.icon || '🔧'}</span>
+            <div>
+              <div style="font-weight:700;color:var(--dark-brown);">${item.name}</div>
+              <div style="font-size:0.8rem;color:var(--text-light);">${item.available_quantity}/${item.total_quantity} available</div>
+            </div>
+          </div>
+          <span class="status-badge-small status-${item.status}">${item.status}</span>
+        </div>
+      `).join('');
+
+    const recent = [...requests].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)).slice(0, 5);
+    document.getElementById('recentRequests').innerHTML = recent.length === 0
+      ? '<div style="text-align:center;color:var(--text-light);padding:2rem;">No requests yet</div>'
+      : recent.map(req => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.9rem 0;border-bottom:1px solid var(--border-color);">
+          <div>
+            <div style="font-weight:700;color:var(--dark-brown);">${req.equipment_name}</div>
+            <div style="font-size:0.85rem;color:var(--text-light);">${req.user_name} · ${req.quantity} unit(s) · ${new Date(req.submitted_at).toLocaleDateString()}</div>
+          </div>
+          <span class="request-status-badge request-status-${req.status}">${req.status}</span>
+        </div>
+      `).join('');
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+  }
+}
+document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+
+<%- include('../layout/footer') %>

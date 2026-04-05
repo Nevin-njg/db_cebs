@@ -1,0 +1,163 @@
+<%- include('../layout/header', { title: title, cssFile: '/css/admin.css' }) %>
+
+<header class="header">
+  <div class="header-container">
+    <div style="display:flex;align-items:center;">
+      <div class="logo"><i class="fas fa-tools"></i> Heritage Tools</div>
+      <div class="admin-badge">Admin Panel</div>
+    </div>
+    <div class="header-right">
+      <div class="admin-info">
+        <div class="admin-name"><%= sessionUser.name %></div>
+        <div class="admin-role">Administrator</div>
+      </div>
+      <div class="user-avatar"><%= sessionUser.name.charAt(0).toUpperCase() %></div>
+      <a href="/auth/logout" style="color:var(--cream);font-size:0.9rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:0.4rem;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </div>
+</header>
+
+<aside class="sidebar">
+  <ul class="sidebar-menu">
+    <li><a href="/admin/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+    <li><a href="/admin/equipment"><i class="fas fa-hammer"></i> Manage Equipment</a></li>
+    <li><a href="/admin/requests" class="active"><i class="fas fa-clipboard-list"></i> Approve Requests</a></li>
+    <li><a href="/admin/history"><i class="fas fa-history"></i> Borrow History</a></li>
+    <li><a href="/admin/users"><i class="fas fa-users"></i> User Management</a></li>
+  </ul>
+</aside>
+
+<main class="main-container">
+  <div class="page-header">
+    <h1 class="page-title">Manage Requests</h1>
+    <div style="display:flex;gap:1rem;">
+      <button class="btn-filter active" onclick="filterRequests('all',this)">All</button>
+      <button class="btn-filter" onclick="filterRequests('pending',this)">Pending</button>
+      <button class="btn-filter" onclick="filterRequests('approved',this)">Approved</button>
+      <button class="btn-filter" onclick="filterRequests('rejected',this)">Rejected</button>
+      <button class="btn-filter" onclick="filterRequests('returned',this)">Returned</button>
+    </div>
+  </div>
+  <div class="content-area">
+    <div class="requests-container" id="requestsList">
+      <% if (requests.length === 0) { %>
+      <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <h3>No Requests</h3>
+        <p>No requests have been submitted yet</p>
+      </div>
+      <% } %>
+      <% requests.forEach(req => { %>
+      <div class="request-card status-<%= req.status %>" data-status="<%= req.status %>">
+        <div class="request-header">
+          <div class="request-field">
+            <div class="request-field-label">Equipment</div>
+            <div class="request-field-value"><%= req.equipment_name %></div>
+          </div>
+          <div class="request-field">
+            <div class="request-field-label">Requested By</div>
+            <div class="request-field-value"><%= req.user_name %></div>
+          </div>
+          <div class="request-field" style="text-align:right;">
+            <span class="request-status-badge request-status-<%= req.status %>"><%= req.status %></span>
+          </div>
+        </div>
+        <div class="request-body">
+          <div class="request-info-grid">
+            <div class="request-info-item">
+              <div class="request-info-label">Quantity</div>
+              <div class="request-info-value"><%= req.quantity %> units</div>
+            </div>
+            <div class="request-info-item">
+              <div class="request-info-label">Duration</div>
+              <div class="request-info-value"><%= req.duration_value %> <%= req.duration_type %></div>
+            </div>
+            <div class="request-info-item">
+              <div class="request-info-label">Return By</div>
+              <div class="request-info-value"><%= new Date(req.return_date).toLocaleString() %></div>
+            </div>
+            <div class="request-info-item">
+              <div class="request-info-label">Submitted</div>
+              <div class="request-info-value"><%= new Date(req.submitted_at).toLocaleDateString() %></div>
+            </div>
+          </div>
+          <div style="margin-bottom:1rem;">
+            <div class="request-info-label" style="margin-bottom:0.5rem;">Purpose</div>
+            <div class="request-purpose"><%= req.purpose %></div>
+          </div>
+          <% if (req.rejection_reason) { %>
+          <div class="rejection-reason show">
+            <div class="rejection-reason-label"><i class="fas fa-times-circle"></i> Rejection Reason</div>
+            <div class="rejection-reason-text">
+              <strong><%= req.rejection_reason %></strong>
+              <% if (req.rejection_details) { %><br><br><%= req.rejection_details %><% } %>
+            </div>
+          </div>
+          <% } %>
+        </div>
+        <div class="request-actions">
+          <% if (req.status === 'pending') { %>
+          <button class="btn-approve" onclick="approveRequest(<%= req.id %>, this)">
+            <i class="fas fa-check"></i> Approve
+          </button>
+          <button class="btn-reject" onclick="openRejectionModal(<%= req.id %>, '<%= req.equipment_name %>', '<%= req.purpose.replace(/'/g, "\\'") %>', <%= req.quantity %>)">
+            <i class="fas fa-times"></i> Reject
+          </button>
+          <% } else if (req.status === 'approved') { %>
+          <span style="color:#2e7d32;font-weight:700;padding:0.75rem 0;">
+            <i class="fas fa-check-circle"></i> Approved — <%= req.approved_at ? new Date(req.approved_at).toLocaleDateString() : '' %>
+          </span>
+          <button class="btn-approve" style="margin-left:auto;" onclick="markReturned(<%= req.id %>, this)">
+            <i class="fas fa-undo"></i> Mark Returned
+          </button>
+          <% } else if (req.status === 'returned') { %>
+          <span style="color:#1976d2;font-weight:700;padding:0.75rem 0;">
+            <i class="fas fa-check-double"></i> Returned — <%= req.returned_at ? new Date(req.returned_at).toLocaleDateString() : '' %>
+          </span>
+          <% } else { %>
+          <span style="color:#c62828;font-weight:700;padding:0.75rem 0;">
+            <i class="fas fa-times-circle"></i> Rejected
+          </span>
+          <% } %>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</main>
+
+<!-- REJECTION MODAL -->
+<div class="rejection-modal" id="rejectionModal">
+  <div class="rejection-content">
+    <div class="rejection-header">
+      <span>Reject Request</span>
+      <button class="close-btn" onclick="closeRejectionModal()">&times;</button>
+    </div>
+    <div class="rejection-form-info" id="rejectionInfo"></div>
+    <div class="rejection-form-group" style="margin-top:1.5rem;">
+      <label class="rejection-form-label">Select Rejection Reason *</label>
+      <select class="form-select" id="rejectionReasonSelect" required>
+        <option value="">-- Select a Reason --</option>
+        <option value="Insufficient Quantity">Insufficient Quantity Available</option>
+        <option value="Equipment Under Maintenance">Equipment Under Maintenance</option>
+        <option value="Invalid Return Date">Invalid Return Date</option>
+        <option value="Duplicate Request">Duplicate Request</option>
+        <option value="Missing Information">Missing Information</option>
+        <option value="Other">Other (Please Specify)</option>
+      </select>
+    </div>
+    <div class="rejection-form-group" style="margin-top:1rem;">
+      <label class="rejection-form-label">Additional Details</label>
+      <textarea class="form-textarea" id="rejectionDetails" placeholder="Optional additional details..." style="min-height:80px;"></textarea>
+    </div>
+    <div class="rejection-buttons" style="margin-top:1.5rem;">
+      <button class="btn-cancel" onclick="closeRejectionModal()">Cancel</button>
+      <button class="btn-confirm" onclick="submitRejection()">Confirm Rejection</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/admin.js"></script>
+<%- include('../layout/footer') %>

@@ -1,0 +1,50 @@
+<%- include('../layout/header', { title: title, cssFile: '/css/auth.css' }) %>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <i class="fas fa-tools"></i>
+      <span>Heritage Tools</span>
+    </div>
+    <h2 class="auth-title">Welcome Back</h2>
+    <p class="auth-subtitle">Sign in to access your account</p>
+
+    <% if (error) { %>
+    <div class="auth-error"><i class="fas fa-exclamation-circle"></i> <%= error %></div>
+    <% } %>
+    <% if (locals.query && query.registered) { %>
+    <div class="auth-success"><i class="fas fa-check-circle"></i> Registered successfully! Please log in.</div>
+    <% } %>
+
+    <form method="POST" action="/auth/login">
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <div class="input-icon">
+          <i class="fas fa-envelope"></i>
+          <input type="email" name="email" class="form-input" placeholder="your@email.com" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-icon">
+          <i class="fas fa-lock"></i>
+          <input type="password" name="password" class="form-input" placeholder="••••••••" required>
+        </div>
+      </div>
+      <button type="submit" class="btn-auth">
+        <i class="fas fa-sign-in-alt"></i> Sign In
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Don't have an account? <a href="/auth/register">Register here</a>
+    </div>
+
+    <div class="auth-hint">
+      <i class="fas fa-info-circle"></i>
+      Admin accounts are created by the system administrator.
+    </div>
+  </div>
+</div>
+
+<%- include('../layout/footer') %>
