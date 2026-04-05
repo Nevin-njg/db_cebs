@@ -12,15 +12,21 @@ exports.getLogin = (req, res) => {
 exports.postLogin = async (req, res) => {
   const { email, password } = req.body;
   try {
-    const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (!rows.length) {
+    // PostgreSQL: Use $1 instead of ?, and access result.rows
+    const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    
+    if (!result.rows.length) {
       return res.render('auth/login', { title: 'Login - Heritage Tools', error: 'Invalid email or password' });
     }
-    const user = rows[0];
+    
+    const user = result.rows[0];
+    
     if (user.password !== hashPassword(password)) {
       return res.render('auth/login', { title: 'Login - Heritage Tools', error: 'Invalid email or password' });
     }
+    
     req.session.user = { id: user.id, name: user.name, email: user.email, role: user.role };
+    
     if (user.role === 'admin') return res.redirect('/admin/dashboard');
     res.redirect('/');
   } catch (err) {
@@ -34,16 +40,27 @@ exports.getRegister = (req, res) => {
 
 exports.postRegister = async (req, res) => {
   const { name, email, password, confirm_password } = req.body;
+  
   if (password !== confirm_password) {
     return res.render('auth/register', { title: 'Register - Heritage Tools', error: 'Passwords do not match' });
   }
+  
   try {
-    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
-    if (existing.length) {
+    // Check if email already exists
+    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    
+    if (existing.rows.length) {
       return res.render('auth/register', { title: 'Register - Heritage Tools', error: 'Email already registered' });
     }
+    
     const hashed = hashPassword(password);
-    await db.query('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, "user")', [name, email, hashed]);
+    
+    // PostgreSQL: Use $1, $2, $3, $4 placeholders
+    await db.query(
+      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)', 
+      [name, email, hashed, 'user']
+    );
+    
     res.redirect('/auth/login?registered=1');
   } catch (err) {
     res.render('auth/register', { title: 'Register - Heritage Tools', error: 'Server error: ' + err.message });

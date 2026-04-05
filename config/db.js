@@ -1,18 +1,15 @@
-const mysql = require('mysql2');
+const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
-const promisePool = pool.promise();
+pool.on('error', (err) => {
+  console.error('❌ Unexpected error on idle client', err);
+});
+
 const crypto = require('crypto');
 
 function hashPassword(password) {
@@ -20,69 +17,70 @@ function hashPassword(password) {
 }
 
 async function initDB() {
+  const client = await pool.connect();
   try {
-    await promisePool.query(`
+    console.log('🔄 Initializing Supabase PostgreSQL database...');
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
-        role ENUM('user', 'admin') DEFAULT 'user',
+        role VARCHAR(50) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    await promisePool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS equipment (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         category VARCHAR(100) NOT NULL,
         icon VARCHAR(20) DEFAULT NULL,
         total_quantity INT NOT NULL DEFAULT 1,
         available_quantity INT NOT NULL DEFAULT 1,
-        status ENUM('available', 'limited', 'unavailable') DEFAULT 'available',
+        status VARCHAR(50) DEFAULT 'available' CHECK (status IN ('available', 'limited', 'unavailable')),
         specifications TEXT,
         next_available VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    await promisePool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS borrow_requests (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         equipment_id INT NOT NULL,
         equipment_name VARCHAR(255) NOT NULL,
         user_name VARCHAR(255) NOT NULL DEFAULT 'User',
         quantity INT NOT NULL DEFAULT 1,
-        duration_type ENUM('hours', 'days') NOT NULL DEFAULT 'days',
+        duration_type VARCHAR(50) NOT NULL DEFAULT 'days' CHECK (duration_type IN ('hours', 'days')),
         duration_value INT NOT NULL DEFAULT 1,
-        return_date DATETIME NOT NULL,
+        return_date TIMESTAMP NOT NULL,
         purpose TEXT,
-        status ENUM('pending', 'approved', 'rejected', 'returned') DEFAULT 'pending',
+        status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'returned')),
         rejection_reason VARCHAR(255),
         rejection_details TEXT,
-        approved_at DATETIME DEFAULT NULL,
-        rejected_at DATETIME DEFAULT NULL,
-        returned_at DATETIME DEFAULT NULL,
+        approved_at TIMESTAMP DEFAULT NULL,
+        rejected_at TIMESTAMP DEFAULT NULL,
+        returned_at TIMESTAMP DEFAULT NULL,
         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE
       )
     `);
 
-    // Seed admin user if no users exist
-    const [userRows] = await promisePool.query('SELECT COUNT(*) as count FROM users');
-    if (userRows[0].count === 0) {
-      await promisePool.query(
-        'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+    const userResult = await client.query('SELECT COUNT(*) as count FROM users');
+    if (parseInt(userResult.rows[0].count) === 0) {
+      await client.query(
+        'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)',
         ['Administrator', 'admin@heritage.com', hashPassword('admin123'), 'admin']
       );
       console.log('✅ Default admin created: admin@heritage.com / admin123');
     }
 
-    // Seed equipment if empty
-    const [eqRows] = await promisePool.query('SELECT COUNT(*) as count FROM equipment');
-    if (eqRows[0].count === 0) {
-      await promisePool.query(`
+    const equipResult = await client.query('SELECT COUNT(*) as count FROM equipment');
+    if (parseInt(equipResult.rows[0].count) === 0) {
+      await client.query(`
         INSERT INTO equipment (name, category, icon, total_quantity, available_quantity, status, specifications) VALUES
         ('Cordless Drill', 'Power Tools', '🔧', 5, 3, 'available', 'Voltage: 20V, Speed: 0-1500 RPM'),
         ('Safety Helmet', 'Safety Equipment', '🪖', 20, 0, 'unavailable', 'ANSI certified, Weight: 400g'),
@@ -91,14 +89,17 @@ async function initDB() {
         ('Work Gloves', 'Safety Equipment', '🧤', 50, 42, 'available', 'Material: Leather and Cotton'),
         ('Level Tool', 'Measuring Tools', '📐', 10, 7, 'available', 'Length: 24 inch, Accuracy: 0.5mm')
       `);
+      console.log('✅ Sample equipment seeded');
     }
 
-    console.log('✅ Database initialized successfully');
+    console.log('✅ Database initialized successfully with Supabase PostgreSQL');
   } catch (err) {
     console.error('❌ Database init error:', err.message);
+  } finally {
+    client.release();
   }
 }
 
 initDB();
 
-module.exports = promisePool;
+module.exports = pool;
